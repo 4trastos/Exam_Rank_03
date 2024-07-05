@@ -1,86 +1,172 @@
 #include "get_next_line.h"
 
-char	*ft_strchr(char *s, int c)
+size_t	ft_strlen(char *str)
 {
-	while (*s)
-	{
-		if (*s == (char)c)
-			return ((char *)s);
-		s++;
-	}
-	return (NULL);
-}
+	int	i;
 
-size_t	ft_strlen(const char *s)
-{
-	size_t	i = 0;
-	
-	while (s[i])
+	i = 0;
+	if (!str)
+		return (0);
+	while (str[i] != '\0')
 		i++;
 	return (i);
 }
 
-void	ft_strcpy(char *dst, const char *src)
+char	*ft_strchr(char *s, int c)
 {
-	while (*src)	
-		*dst++ = *src++;
-	*dst = '\0';
+	int	i;
+
+	if (!s)
+		return (NULL);
+	i = 0;
+	while (s[i] != '\0')
+	{
+		if (s[i] == (unsigned char)c)
+			return ((char *)&s[i] + 1);
+		i++;
+	}
+	if ((char)c == '\0')
+		return ((char *)&s[i]);
+	return (NULL);
 }
 
-char	*ft_strdup(const char *src)
+char	*ft_strjoin(char *board, char *buffer)
 {
-	char	*dst = malloc(len);
-	size_t	len = ft_strlen(src) + 1;
-	
-	if (dst == NULL)
+	size_t	i;
+	size_t	z;
+	char	*board_dir;
+
+	if (ft_strlen(buffer) == 0)
+		return (board);
+	board_dir = malloc((ft_strlen(board) + ft_strlen(buffer) + 1));
+	if (!board_dir)
+	{
+		free(board);
 		return (NULL);
-	ft_strcpy(dst, src);
-	return (dst);
+	}
+	i = -1;
+	while (board[++i] != '\0')
+		board_dir[i] = board[i];
+	z = 0;
+	while (buffer[z] != '\0')
+		board_dir[i++] = buffer[z++];
+	board_dir[i] = '\0';
+	free(board);
+	return (board_dir);
 }
 
-char	*ft_strjoin(char *s1, char const *s2)
+char	*ft_strdup(char *s1)
 {
-	size_t	s1_len = ft_strlen(s1);
-	size_t	s2_len = ft_strlen(s2);
-	char	*join = malloc((s1_len + s2_len + 1));
+	int		i;
+	int		len;
+	char	*s2;
 
-	if (!s1 || !s2)
+	if (!s1)
 		return (NULL);
-	if (!join)
+	i = 0;
+	len = ft_strlen(s1);
+	s2 = malloc(len + 1);
+	if (!s2)
 		return (NULL);
-	ft_strcpy(join, s1);
-	ft_strcpy((join + s1_len), s2);
-	free(s1);
-	return (join);
+	while (s1[i] != '\0')
+	{
+		s2[i] = s1[i];
+		i++;
+	}
+	s2[i] = '\0';
+	return (s2);
+}
+
+char	*ft_new_line(char *board)
+{
+	char	*new_line;
+
+	if (!board)
+		return (NULL);
+	if (!ft_strchr(board, '\n'))
+	{
+		free(board);
+		return (NULL);
+	}
+	new_line = ft_strchr(board, '\n');
+	new_line = ft_strdup(new_line);
+	free(board);
+	return (new_line);
+}
+
+char	*ft_line(char *board)
+{
+	char	*ln;
+	int		i;
+
+	i = 0;
+	if (!board[i])
+		return (NULL);
+	if (!ft_strchr(board, '\n'))
+		ln = ft_strdup(board);
+	else
+	{
+		ln = malloc(ft_strchr(board, '\n') - board + 1);
+		if (!ln)
+			return (NULL);
+		while (board[i] != '\n')
+		{
+			ln[i] = board[i];
+			i++;
+		}
+		ln[i] = board[i];
+		ln[i + 1] = '\0';
+	}
+	return (ln);
+}
+
+char	*ft_read(int fd, char *board)
+{
+	char	*buffer;
+	int		bytes_read;
+
+	buffer = malloc(BUFFER_SIZE + 1);
+	if (!buffer)
+	{
+		free(board);
+		return (NULL);
+	}
+	bytes_read = 1;
+	while (board && !ft_strchr(board, '\n') && bytes_read > 0)
+	{
+		bytes_read = read(fd, buffer, BUFFER_SIZE);
+		if (bytes_read == -1)
+		{
+			free(buffer);
+			free(board);
+			return (NULL);
+		}
+		buffer[bytes_read] = '\0';
+		board = ft_strjoin(board, buffer);
+	}
+	free(buffer);
+	return (board);
 }
 
 char	*get_next_line(int fd)
 {
-	static char	buf[BUFFER_SIZE + 1];
+	static char	*board;
 	char		*line;
-	char		*newline;
-	int			countread;
-	int			to_copy;
 
-	line = ft_strdup(buf);
-	while (!(newline = ft_strchr(line, '\n')) && (countread = read(fd, buf, BUFFER_SIZE)))
+	if (fd < 0 || BUFFER_SIZE <= 0)
+		return (NULL);
+	if (!board)
 	{
-		buf[countread] = '\0';
-		line = ft_strjoin(line, buf);
+		board = malloc(1);
+		if (!board)
+			return (NULL);
+		board[0] = '\0';
 	}
-	if (ft_strlen(line) == 0)
-		return (free(line), NULL);
-
-	if (newline != NULL)
-	{
-		to_copy = newline - line + 1;
-		ft_strcpy(buf, newline + 1);
-	}
-	else
-	{
-		to_copy = ft_strlen(line);
-		buf[0] = '\0';
-	}
-	line[to_copy] = '\0';
+	board = ft_read(fd, board);
+	if (!board)
+		return (NULL);
+	line = ft_line(board);
+	board = ft_new_line(board);
 	return (line);
 }
+
